@@ -48,7 +48,7 @@
       <div>
         <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white flex items-center gap-1.5">
           PNG Scrambler
-          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">v2.0 Mobile</span>
+          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">v2.1</span>
         </h1>
         <p class="text-[10px] text-slate-400 hidden sm:block">4x4 & 2x2 Pixel Swap with Interactive Pan & Zoom</p>
       </div>
@@ -56,6 +56,12 @@
 
     <!-- Header Right Buttons -->
     <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- Reset/Clear App State Button -->
+      <button id="resetAppBtn" title="初期状態に戻す" class="px-2.5 py-1.5 bg-slate-800 hover:bg-rose-900/40 hover:border-rose-700/50 text-rose-400 text-xs font-medium rounded-lg transition duration-150 flex items-center space-x-1 border border-slate-700 active:scale-95">
+        <i class="fa-solid fa-arrows-rotate text-xs"></i>
+        <span class="text-[11px] sm:text-xs">クリア</span>
+      </button>
+
       <label for="fileInput" class="cursor-pointer px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium rounded-lg transition duration-150 flex items-center space-x-1.5 border border-slate-700 active:scale-95">
         <i class="fa-solid fa-folder-open text-indigo-400"></i>
         <span class="text-[11px] sm:text-xs">開く</span>
@@ -86,10 +92,10 @@
       </div>
 
       <!-- Scrollable / Interactive Canvas Viewport -->
-      <div class="flex-1 overflow-hidden relative checkerboard touch-none flex items-center justify-center" id="viewportContainer">
+      <div class="flex-1 overflow-hidden relative checkerboard touch-none" id="viewportContainer">
         
         <!-- Empty Upload Placeholder -->
-        <div id="emptyState" class="text-center p-6 sm:p-8 max-w-xs sm:max-w-sm rounded-xl border border-dashed border-slate-700 bg-slate-900/90 backdrop-blur-sm shadow-xl z-10 pointer-events-auto">
+        <div id="emptyState" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center p-6 sm:p-8 max-w-xs sm:max-w-sm rounded-xl border border-dashed border-slate-700 bg-slate-900/90 backdrop-blur-sm shadow-xl z-10 pointer-events-auto">
           <div class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-slate-800 flex items-center justify-center text-indigo-400 text-xl sm:text-2xl shadow-inner border border-slate-700">
             <i class="fa-solid fa-cloud-arrow-up"></i>
           </div>
@@ -100,8 +106,8 @@
           </button>
         </div>
 
-        <!-- Transform Stage Container (Pan & Zoom wrapper) -->
-        <div id="stage" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden" style="transform-origin: 0 0;">
+        <!-- Transform Stage Container (Pan & Zoom wrapper aligned to Top-Left) -->
+        <div id="stage" class="absolute left-0 top-0 hidden" style="transform-origin: 0 0;">
           <div id="canvasContainer" class="relative shadow-2xl rounded-sm border border-slate-700/60 inline-block">
             <!-- Pure Image Canvas -->
             <canvas id="mainCanvas" class="block relative z-0"></canvas>
@@ -123,7 +129,7 @@
           <button id="zoomFitBtn" title="画面に合わせる" class="w-8 h-8 flex items-center justify-center text-indigo-400 hover:bg-slate-800 rounded-lg text-xs active:scale-90 transition">
             <i class="fa-solid fa-expand"></i>
           </button>
-          <button id="zoom100Btn" title="等倍 (100%)" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:bg-slate-800 rounded-lg text-[10px] font-bold active:scale-90 transition">
+          <button id="zoom100Btn" title="左上原点で等倍 (1:1)" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:bg-slate-800 rounded-lg text-[10px] font-bold active:scale-90 transition">
             1:1
           </button>
         </div>
@@ -202,8 +208,9 @@
           <i class="fa-solid fa-sliders text-indigo-400"></i> スマホ操作のヒント
         </div>
         <p class="leading-relaxed text-slate-400 text-[10.5px]">
-          ・<b>表示モード</b>: 1本指でドラッグしてパン（画面移動）。<br>
-          ・<b>加工モード</b>: 1本指で範囲指定（8px単位に整列）。
+          ・<b>表示モード</b>: ドラッグで画像を移動。<br>
+          ・<b>加工モード</b>: ドラッグで範囲指定（8px単位）。<br>
+          ・画像読み込み時は左上に配置されます。
         </p>
       </div>
     </aside>
@@ -212,6 +219,7 @@
 
   <script>
     // Elements
+    const resetAppBtn = document.getElementById('resetAppBtn');
     const fileInput = document.getElementById('fileInput');
     const downloadBtn = document.getElementById('downloadBtn');
     const mainCanvas = document.getElementById('mainCanvas');
@@ -262,6 +270,11 @@
     let startCoords = { x: 0, y: 0 };
     let selectionRect = null;
     let processedRegions = [];
+
+    // Reset Application State / Clear
+    resetAppBtn.addEventListener('click', () => {
+      window.location.reload();
+    });
 
     // CRC32 Table
     const crcTable = [];
@@ -434,10 +447,18 @@
       zoomScaleText.textContent = `${Math.round(scale * 100)}%`;
     }
 
+    // Align Top-Left at 100% or fit if image is smaller
+    function alignTopLeft() {
+      scale = 1.0;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
     function zoomToFit() {
       if (!mainCanvas.width || !mainCanvas.height) return;
-      const vw = viewportContainer.clientWidth - 32;
-      const vh = viewportContainer.clientHeight - 32;
+      const vw = viewportContainer.clientWidth - 16;
+      const vh = viewportContainer.clientHeight - 16;
 
       const scaleX = vw / mainCanvas.width;
       const scaleY = vh / mainCanvas.height;
@@ -455,13 +476,6 @@
 
     function zoomOut() {
       scale = Math.max(scale / 1.25, 0.1);
-      applyTransform();
-    }
-
-    function zoom100() {
-      scale = 1.0;
-      panX = 0;
-      panY = 0;
       applyTransform();
     }
 
@@ -490,7 +504,8 @@
           zoomControls.classList.remove('hidden');
           downloadBtn.disabled = false;
 
-          zoomToFit();
+          // Align strictly to Top-Left corner (0,0) on initial load
+          alignTopLeft();
 
           if (restoredRegions.length > 0) {
             restoredRegions.forEach(reg => {
@@ -507,9 +522,9 @@
               });
             });
 
-            statusMessage.textContent = `${restoredRegions.length}件のメタデータ領域を検出して復元しました。`;
+            statusMessage.textContent = `${restoredRegions.length}件のメタデータ領域を検出して自動復元しました。`;
           } else {
-            statusMessage.textContent = '画像を読み込みました。表示/加工モードで操作してください。';
+            statusMessage.textContent = '画像を左上に読み込みました。表示/加工モードで操作してください。';
           }
 
           updateUI();
@@ -655,7 +670,7 @@
     zoomInBtn.addEventListener('click', zoomIn);
     zoomOutBtn.addEventListener('click', zoomOut);
     zoomFitBtn.addEventListener('click', zoomToFit);
-    zoom100Btn.addEventListener('click', zoom100);
+    zoom100Btn.addEventListener('click', alignTopLeft);
 
     // Process Selected Region
     processBtn.addEventListener('click', () => {
@@ -728,7 +743,7 @@
 
           statusMessage.textContent = `PNG画像（メタデータ: ${processedRegions.length}件）を保存しました。`;
         };
-        reader.readAsArrayBuffer(blob);
+        reader.readAsArrayBuffer(file);
       }, 'image/png');
     });
 
