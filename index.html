@@ -342,7 +342,66 @@
       return regions;
     }
 
+    function stripExistingMetadata(pngBuffer) {
+      const view = new DataView(pngBuffer);
+      if (pngBuffer.byteLength < 8 || view.getUint32(0) !== 0x89504e47 || view.getUint32(4) !== 0x0d0a1a0a) {
+        return pngBuffer;
+      }
+
+      const chunks = [];
+      let offset = 8;
+
+      while (offset < pngBuffer.byteLength) {
+        const length = view.getUint32(offset);
+        const type = String.fromCharCode(
+          view.getUint8(offset + 4),
+          view.getUint8(offset + 5),
+          view.getUint8(offset + 6),
+          view.getUint8(offset + 7)
+        );
+        const chunkTotalLen = 12 + length;
+
+        let isCropText = false;
+        if (type === 'tEXt') {
+          const chunkData = new Uint8Array(pngBuffer, offset + 8, length);
+          let nullIndex = -1;
+          for (let i = 0; i < chunkData.length; i++) {
+            if (chunkData[i] === 0) {
+              nullIndex = i;
+              break;
+            }
+          }
+          if (nullIndex !== -1) {
+            const keyword = new TextDecoder().decode(chunkData.subarray(0, nullIndex));
+            if (keyword === 'CropRegions' || keyword === 'CropRegion') {
+              isCropText = true;
+            }
+          }
+        }
+
+        if (!isCropText) {
+          chunks.push(new Uint8Array(pngBuffer, offset, chunkTotalLen));
+        }
+
+        offset += chunkTotalLen;
+      }
+
+      let newLen = 8;
+      chunks.forEach(c => newLen += c.byteLength);
+      const res = new Uint8Array(newLen);
+      res.set(new Uint8Array(pngBuffer, 0, 8), 0);
+      let cur = 8;
+      chunks.forEach(c => {
+        res.set(c, cur);
+        cur += c.byteLength;
+      });
+
+      return res.buffer;
+    }
+
     function injecttEXtChunk(pngBuffer, keyword, text) {
+      const cleanBuffer = stripExistingMetadata(pngBuffer);
+
       const encoder = new TextEncoder();
       const keyBytes = encoder.encode(keyword);
       const textBytes = encoder.encode(text);
@@ -364,14 +423,14 @@
       const crcVal = calculateCRC(chunk.subarray(4, 8 + dataLength));
       view.setUint32(8 + dataLength, crcVal);
 
-      const origView = new DataView(pngBuffer);
+      const origView = new DataView(cleanBuffer);
       const ihdrLen = origView.getUint32(8);
       const insertPos = 8 + 12 + ihdrLen;
 
-      const result = new Uint8Array(pngBuffer.byteLength + chunk.length);
-      result.set(new Uint8Array(pngBuffer, 0, insertPos), 0);
+      const result = new Uint8Array(cleanBuffer.byteLength + chunk.length);
+      result.set(new Uint8Array(cleanBuffer, 0, insertPos), 0);
       result.set(chunk, insertPos);
-      result.set(new Uint8Array(pngBuffer, insertPos), insertPos + chunk.length);
+      result.set(new Uint8Array(cleanBuffer, insertPos), insertPos + chunk.length);
 
       return result.buffer;
     }
@@ -489,7 +548,9 @@
         const restoredRegions = readPNGMetadata(currentArrayBuffer);
 
         const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
         img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
           mainCanvas.width = img.width;
           mainCanvas.height = img.height;
           ctx.drawImage(img, 0, 0);
@@ -529,7 +590,7 @@
 
           updateUI();
         };
-        img.src = URL.createObjectURL(file);
+        img.src = objectUrl;
       };
       reader.readAsArrayBuffer(file);
     });
@@ -721,14 +782,17 @@
     // Toggle Overlay Visibility
     toggleOverlaysBtn.addEventListener('click', () => {
       showOverlays = !showOverlays;
-      regionOverlaysContainer.style.display = showOverlays ? 'block' : 'none';
-      toggleOverlaysBtn.classList.toggle('text-indigo-400', showOverlays);
-      toggleOverlaysBtn.classList.toggle('text-slate-400', !showOverlays);
+      updateUI();
     });
 
     // Download PNG
     downloadBtn.addEventListener('click', () => {
       mainCanvas.toBlob((blob) => {
+        if (!blob) {
+          statusMessage.textContent = '保存処理中にエラーが発生しました。';
+          return;
+        }
+
         const reader = new FileReader();
         reader.onload = (e) => {
           const buffer = e.target.result;
@@ -736,14 +800,17 @@
           const metaText = processedRegions.map(r => `${r.x},${r.y},${r.w},${r.h}`).join(';');
           const newBuffer = injecttEXtChunk(buffer, 'CropRegions', metaText);
 
+          const outBlob = new Blob([newBuffer], { type: 'image/png' });
+          const url = URL.createObjectURL(outBlob);
           const a = document.createElement('a');
-          a.href = URL.createObjectURL(new Blob([newBuffer], { type: 'image/png' }));
+          a.href = url;
           a.download = `scrambled_${Date.now()}.png`;
           a.click();
+          URL.revokeObjectURL(url);
 
           statusMessage.textContent = `PNG画像（メタデータ: ${processedRegions.length}件）を保存しました。`;
         };
-        reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(blob);
       }, 'image/png');
     });
 
@@ -754,6 +821,10 @@
 
       regionListContainer.innerHTML = '';
       regionOverlaysContainer.innerHTML = '';
+
+      regionOverlaysContainer.style.display = showOverlays ? 'block' : 'none';
+      toggleOverlaysBtn.classList.toggle('text-indigo-400', showOverlays);
+      toggleOverlaysBtn.classList.toggle('text-slate-400', !showOverlays);
 
       if (processedRegions.length === 0) {
         regionListContainer.appendChild(regionListEmpty);
