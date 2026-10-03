@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" class="h-full bg-slate-900 text-slate-100">
+<html lang="ja" class="h-full bg-slate-950 text-slate-100">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -20,9 +20,9 @@
       border-radius: 4px;
     }
     
-    /* Checkerboard background for transparent PNG preview */
+    /* Checkerboard pattern for transparent PNG preview */
     .checkerboard {
-      background-color: #0f172a;
+      background-color: #090d16;
       background-image: 
         linear-gradient(45deg, #1e293b 25%, transparent 25%), 
         linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
@@ -32,8 +32,7 @@
       background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
     }
 
-    /* Touch Action Control for Canvas */
-    .touch-canvas {
+    .touch-none {
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
     }
@@ -41,7 +40,6 @@
 </head>
 <body class="h-full flex flex-col font-sans antialiased select-none overflow-hidden bg-slate-950">
 
-  <!-- Top Navigation / Header -->
   <header class="h-14 bg-slate-900 border-b border-slate-800 px-3 sm:px-4 flex items-center justify-between shrink-0 z-20 shadow-md">
     <div class="flex items-center space-x-2 sm:space-x-3">
       <div class="p-1.5 sm:p-2 bg-indigo-600 rounded-lg text-white shadow-md shadow-indigo-500/20">
@@ -50,13 +48,13 @@
       <div>
         <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white flex items-center gap-1.5">
           PNG Scrambler
-          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">Metadata</span>
+          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">v2.0 Mobile</span>
         </h1>
-        <p class="text-[10px] text-slate-400 hidden sm:block">4x4 & 2x2 Pixel Swap with PNG Header Metadata</p>
+        <p class="text-[10px] text-slate-400 hidden sm:block">4x4 & 2x2 Pixel Swap with Interactive Pan & Zoom</p>
       </div>
     </div>
 
-    <!-- Header Actions -->
+    <!-- Header Right Buttons -->
     <div class="flex items-center space-x-1.5 sm:space-x-2">
       <label for="fileInput" class="cursor-pointer px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium rounded-lg transition duration-150 flex items-center space-x-1.5 border border-slate-700 active:scale-95">
         <i class="fa-solid fa-folder-open text-indigo-400"></i>
@@ -71,60 +69,96 @@
     </div>
   </header>
 
-  <!-- Main Content Layout (Flex Column on Mobile, Row on Desktop) -->
   <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
     
-    <!-- Canvas Viewport Area -->
+    <!-- Canvas Viewport -->
     <main class="flex-1 flex flex-col bg-slate-950 relative overflow-hidden min-h-0">
       
-      <!-- Status Message Banner -->
-      <div id="statusBanner" class="bg-indigo-950/70 border-b border-indigo-800/40 px-3 py-1.5 text-[11px] sm:text-xs flex items-center justify-between text-indigo-200 shrink-0">
+      <!-- Top Status Banner & Mode Indicator -->
+      <div id="statusBanner" class="bg-indigo-950/80 border-b border-indigo-800/40 px-3 py-1.5 text-[11px] sm:text-xs flex items-center justify-between text-indigo-200 shrink-0">
         <div class="flex items-center space-x-1.5 truncate mr-2">
           <i class="fa-solid fa-circle-info text-indigo-400 text-xs shrink-0"></i>
           <span id="statusMessage" class="truncate">PNG画像を読み込んでください。</span>
         </div>
-        <span id="canvasDimensions" class="font-mono text-slate-400 text-[10px] sm:text-[11px] shrink-0">- x -</span>
+        <div class="flex items-center space-x-2 shrink-0 font-mono text-[10px] sm:text-[11px]">
+          <span id="canvasDimensions" class="text-slate-400">- x -</span>
+        </div>
       </div>
 
-      <!-- Scrollable Canvas Container -->
-      <div class="flex-1 overflow-auto p-3 sm:p-6 flex items-center justify-center checkerboard relative" id="canvasViewport">
+      <!-- Scrollable / Interactive Canvas Viewport -->
+      <div class="flex-1 overflow-hidden relative checkerboard touch-none flex items-center justify-center" id="viewportContainer">
         
         <!-- Empty Upload Placeholder -->
-        <div id="emptyState" class="text-center p-6 sm:p-8 max-w-xs sm:max-w-sm rounded-xl border border-dashed border-slate-700 bg-slate-900/90 backdrop-blur-sm shadow-xl">
+        <div id="emptyState" class="text-center p-6 sm:p-8 max-w-xs sm:max-w-sm rounded-xl border border-dashed border-slate-700 bg-slate-900/90 backdrop-blur-sm shadow-xl z-10 pointer-events-auto">
           <div class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-slate-800 flex items-center justify-center text-indigo-400 text-xl sm:text-2xl shadow-inner border border-slate-700">
             <i class="fa-solid fa-cloud-arrow-up"></i>
           </div>
           <h3 class="text-xs sm:text-sm font-semibold text-slate-200 mb-1">PNG画像を選択</h3>
-          <p class="text-[11px] sm:text-xs text-slate-400 mb-4">ドラッグ/タッチ操作で範囲を指定して暗号化・復元できます。</p>
+          <p class="text-[11px] sm:text-xs text-slate-400 mb-4">大きな画像も表示モードでパン操作（移動）、加工モードで範囲選択・暗号化が可能です。</p>
           <button onclick="document.getElementById('fileInput').click()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition shadow-md active:scale-95">
             画像ファイルを選択
           </button>
         </div>
 
-        <!-- Canvas and Overlay Container -->
-        <div id="canvasContainer" class="relative hidden shadow-2xl rounded-sm border border-slate-700/60 overflow-hidden inline-block touch-canvas">
-          <!-- Pure Image Canvas -->
-          <canvas id="mainCanvas" class="block cursor-crosshair relative z-0"></canvas>
-          
-          <!-- Visual Overlay Layer (Separated from Canvas Context) -->
-          <div id="selectionOverlay" class="absolute border-2 border-indigo-400 bg-indigo-500/20 pointer-events-none hidden z-10"></div>
-          <div id="regionOverlaysContainer" class="absolute inset-0 pointer-events-none z-10"></div>
+        <!-- Transform Stage Container (Pan & Zoom wrapper) -->
+        <div id="stage" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden" style="transform-origin: 0 0;">
+          <div id="canvasContainer" class="relative shadow-2xl rounded-sm border border-slate-700/60 inline-block">
+            <!-- Pure Image Canvas -->
+            <canvas id="mainCanvas" class="block relative z-0"></canvas>
+            
+            <!-- Visual Overlays (Separated from Canvas ImageData) -->
+            <div id="selectionOverlay" class="absolute border-2 border-indigo-400 bg-indigo-500/20 pointer-events-none hidden z-10"></div>
+            <div id="regionOverlaysContainer" class="absolute inset-0 pointer-events-none z-10"></div>
+          </div>
         </div>
+
+        <!-- Floating Zoom Controls (Bottom Right of Canvas Area) -->
+        <div id="zoomControls" class="absolute top-3 right-3 z-20 flex flex-col space-y-1 bg-slate-900/90 border border-slate-800 p-1 rounded-xl shadow-xl backdrop-blur-md hidden">
+          <button id="zoomInBtn" title="拡大" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:bg-slate-800 rounded-lg text-xs active:scale-90 transition">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+          <button id="zoomOutBtn" title="縮小" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:bg-slate-800 rounded-lg text-xs active:scale-90 transition">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <button id="zoomFitBtn" title="画面に合わせる" class="w-8 h-8 flex items-center justify-center text-indigo-400 hover:bg-slate-800 rounded-lg text-xs active:scale-90 transition">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+          <button id="zoom100Btn" title="等倍 (100%)" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:bg-slate-800 rounded-lg text-[10px] font-bold active:scale-90 transition">
+            1:1
+          </button>
+        </div>
+
       </div>
 
-      <!-- Mobile Quick Toolbar (Sticky at Bottom of Canvas Area) -->
-      <div class="p-2 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-xs shrink-0 backdrop-blur-md">
-        <div class="flex items-center space-x-1.5 text-slate-300 truncate">
-          <span class="text-[10px] sm:text-xs text-slate-400 font-mono" id="currentSelectionCoords">未選択</span>
+      <!-- Bottom Interactive Toolbar -->
+      <div class="p-2 sm:p-2.5 bg-slate-900/95 border-t border-slate-800 flex items-center justify-between text-xs shrink-0 backdrop-blur-md z-20">
+        
+        <!-- Mode Switch Buttons -->
+        <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button id="modeViewBtn" class="px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition bg-indigo-600 text-white shadow-md">
+            <i class="fa-solid fa-hand text-xs"></i>
+            <span>表示モード</span>
+          </button>
+          <button id="modeProcessBtn" class="px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition text-slate-400 hover:text-slate-200">
+            <i class="fa-solid fa-crop-simple text-xs"></i>
+            <span>加工モード</span>
+          </button>
         </div>
 
+        <!-- Center Selection Coordinates / Zoom Percentage -->
+        <div class="flex items-center space-x-2 text-[11px] font-mono text-slate-300">
+          <span id="zoomScaleText" class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700/60 text-slate-300">100%</span>
+          <span id="currentSelectionCoords" class="hidden sm:inline text-slate-400">未選択</span>
+        </div>
+
+        <!-- Action Button & Overlay Toggle -->
         <div class="flex items-center space-x-1.5">
-          <button id="toggleOverlaysBtn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded border border-slate-700 flex items-center gap-1 text-[11px]">
+          <button id="toggleOverlaysBtn" class="p-2 sm:px-2.5 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg border border-slate-700 flex items-center gap-1 text-[11px]">
             <i class="fa-solid fa-eye"></i>
             <span class="hidden sm:inline">枠表示</span>
           </button>
           
-          <button id="processBtn" disabled class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white text-xs font-medium rounded-md transition flex items-center gap-1 shadow active:scale-95 disabled:cursor-not-allowed">
+          <button id="processBtn" disabled class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white text-xs font-medium rounded-lg transition flex items-center gap-1 shadow active:scale-95 disabled:cursor-not-allowed">
             <i class="fa-solid fa-shuffle text-xs"></i>
             <span>加工実行</span>
           </button>
@@ -139,10 +173,10 @@
       <div class="p-2.5 sm:p-3 border-b border-slate-800 flex items-center justify-between bg-slate-800/60 shrink-0">
         <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
           <i class="fa-solid fa-layer-group text-indigo-400"></i>
-          加工領域 (<span id="regionCount">0</span>)
+          加工領域リスト (<span id="regionCount">0</span>)
         </h2>
         
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-1.5">
           <button id="undoBtn" disabled class="px-2 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 text-[11px] font-medium rounded border border-slate-700 flex items-center gap-1 active:scale-95 disabled:cursor-not-allowed">
             <i class="fa-solid fa-rotate-left"></i>
             <span>戻す</span>
@@ -165,10 +199,11 @@
       <!-- Footer Info -->
       <div class="hidden md:block p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
         <div class="font-bold text-slate-300 flex items-center gap-1">
-          <i class="fa-solid fa-microchip text-indigo-400"></i> 加工アルゴリズム
+          <i class="fa-solid fa-sliders text-indigo-400"></i> スマホ操作のヒント
         </div>
         <p class="leading-relaxed text-slate-400 text-[10.5px]">
-          4x4ブロック内並び替え ＋ 4x4ブロックの2x2並び替え（8x8px単位）
+          ・<b>表示モード</b>: 1本指でドラッグしてパン（画面移動）。<br>
+          ・<b>加工モード</b>: 1本指で範囲指定（8px単位に整列）。
         </p>
       </div>
     </aside>
@@ -176,11 +211,18 @@
   </div>
 
   <script>
+    // Elements
     const fileInput = document.getElementById('fileInput');
     const downloadBtn = document.getElementById('downloadBtn');
     const mainCanvas = document.getElementById('mainCanvas');
     const ctx = mainCanvas.getContext('2d', { willReadFrequently: true });
+    
+    const viewportContainer = document.getElementById('viewportContainer');
+    const stage = document.getElementById('stage');
     const canvasContainer = document.getElementById('canvasContainer');
+    const emptyState = document.getElementById('emptyState');
+    const zoomControls = document.getElementById('zoomControls');
+    
     const selectionOverlay = document.getElementById('selectionOverlay');
     const regionOverlaysContainer = document.getElementById('regionOverlaysContainer');
     
@@ -188,22 +230,40 @@
     const canvasDimensions = document.getElementById('canvasDimensions');
     const currentSelectionCoords = document.getElementById('currentSelectionCoords');
     const regionCount = document.getElementById('regionCount');
+    const zoomScaleText = document.getElementById('zoomScaleText');
     
+    const modeViewBtn = document.getElementById('modeViewBtn');
+    const modeProcessBtn = document.getElementById('modeProcessBtn');
     const processBtn = document.getElementById('processBtn');
     const undoBtn = document.getElementById('undoBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const toggleOverlaysBtn = document.getElementById('toggleOverlaysBtn');
+    
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomFitBtn = document.getElementById('zoomFitBtn');
+    const zoom100Btn = document.getElementById('zoom100Btn');
+
     const regionListContainer = document.getElementById('regionListContainer');
     const regionListEmpty = document.getElementById('regionListEmpty');
 
+    // App State
     let currentArrayBuffer = null;
-    let isSelecting = false;
-    let startX = 0, startY = 0;
+    let currentMode = 'VIEW'; // 'VIEW' or 'PROCESS'
+    let showOverlays = true;
+    
+    // Pan and Zoom Transform State
+    let scale = 1.0;
+    let panX = 0;
+    let panY = 0;
+
+    // Selection State
+    let isInteracting = false;
+    let startCoords = { x: 0, y: 0 };
     let selectionRect = null;
     let processedRegions = [];
-    let showOverlays = true;
 
-    // CRC32 Lookup Table
+    // CRC32 Table
     const crcTable = [];
     for (let n = 0; n < 256; n++) {
       let c = n;
@@ -221,7 +281,6 @@
       return (crc ^ 0xffffffff) >>> 0;
     }
 
-    // Read PNG Header Metadata (CropRegions key)
     function readPNGMetadata(buffer) {
       const view = new DataView(buffer);
       if (buffer.byteLength < 8 || view.getUint32(0) !== 0x89504e47 || view.getUint32(4) !== 0x0d0a1a0a) {
@@ -270,7 +329,6 @@
       return regions;
     }
 
-    // Inject tEXt chunk with key CropRegions
     function injecttEXtChunk(pngBuffer, keyword, text) {
       const encoder = new TextEncoder();
       const keyBytes = encoder.encode(keyword);
@@ -305,7 +363,6 @@
       return result.buffer;
     }
 
-    // Core Pixel Transform Engine
     function transformRegion(rx, ry, rw, rh) {
       const imgData = ctx.getImageData(rx, ry, rw, rh);
       const data = imgData.data;
@@ -320,7 +377,6 @@
         [1,2], [1,3], [1,0], [1,1]
       ];
 
-      // Step 1: Swap 4x4 pixels within each 4x4 block
       for (let by = 0; by < rh; by += 4) {
         for (let bx = 0; bx < rw; bx += 4) {
           for (let i = 0; i < 16; i++) {
@@ -343,7 +399,6 @@
         [0, 1], [0, 0]
       ];
 
-      // Step 2: Swap 4x4 blocks in 2x2 matrix
       for (let bby = 0; bby < rh; bby += 8) {
         for (let bbx = 0; bbx < rw; bbx += 8) {
           for (let bi = 0; bi < 4; bi++) {
@@ -374,7 +429,42 @@
       ctx.putImageData(imgData, rx, ry);
     }
 
-    // Handle File Input
+    function applyTransform() {
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomScaleText.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function zoomToFit() {
+      if (!mainCanvas.width || !mainCanvas.height) return;
+      const vw = viewportContainer.clientWidth - 32;
+      const vh = viewportContainer.clientHeight - 32;
+
+      const scaleX = vw / mainCanvas.width;
+      const scaleY = vh / mainCanvas.height;
+      
+      scale = Math.min(scaleX, scaleY, 1.0);
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
+    function zoomIn() {
+      scale = Math.min(scale * 1.25, 5.0);
+      applyTransform();
+    }
+
+    function zoomOut() {
+      scale = Math.max(scale / 1.25, 0.1);
+      applyTransform();
+    }
+
+    function zoom100() {
+      scale = 1.0;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -396,8 +486,11 @@
           
           canvasDimensions.textContent = `${img.width}x${img.height}px`;
           emptyState.classList.add('hidden');
-          canvasContainer.classList.remove('hidden');
+          stage.classList.remove('hidden');
+          zoomControls.classList.remove('hidden');
           downloadBtn.disabled = false;
+
+          zoomToFit();
 
           if (restoredRegions.length > 0) {
             restoredRegions.forEach(reg => {
@@ -414,9 +507,9 @@
               });
             });
 
-            statusMessage.textContent = `${restoredRegions.length}件のメタデータ領域を検出して自動復元しました。`;
+            statusMessage.textContent = `${restoredRegions.length}件のメタデータ領域を検出して復元しました。`;
           } else {
-            statusMessage.textContent = '画像を読み込みました。ドラッグで範囲を選択できます。';
+            statusMessage.textContent = '画像を読み込みました。表示/加工モードで操作してください。';
           }
 
           updateUI();
@@ -426,99 +519,143 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // Helper to get Canvas Relative Coordinates for Mouse and Touch
-    function getCanvasCoordinates(e) {
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode === 'VIEW') {
+        modeViewBtn.className = "px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition bg-indigo-600 text-white shadow-md";
+        modeProcessBtn.className = "px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition text-slate-400 hover:text-slate-200";
+        mainCanvas.style.cursor = 'grab';
+        statusMessage.textContent = '【表示モード】ドラッグで画像を移動できます。';
+      } else {
+        modeProcessBtn.className = "px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition bg-indigo-600 text-white shadow-md";
+        modeViewBtn.className = "px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition text-slate-400 hover:text-slate-200";
+        mainCanvas.style.cursor = 'crosshair';
+        statusMessage.textContent = '【加工モード】ドラッグして加工領域を選択してください。';
+      }
+    }
+
+    modeViewBtn.addEventListener('click', () => setMode('VIEW'));
+    modeProcessBtn.addEventListener('click', () => setMode('PROCESS'));
+
+    function getPointerClientCoords(e) {
+      if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function getCanvasCoordinates(clientX, clientY) {
       const rect = mainCanvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-      };
+      const rawX = (clientX - rect.left) / scale;
+      const rawY = (clientY - rect.top) / scale;
+      return { x: rawX, y: rawY };
     }
 
     function handleStart(e) {
       if (!currentArrayBuffer) return;
-      const coords = getCanvasCoordinates(e);
-      startX = coords.x;
-      startY = coords.y;
-      isSelecting = true;
+      const client = getPointerClientCoords(e);
+      isInteracting = true;
 
-      selectionOverlay.style.left = `${startX}px`;
-      selectionOverlay.style.top = `${startY}px`;
-      selectionOverlay.style.width = '0px';
-      selectionOverlay.style.height = '0px';
-      selectionOverlay.classList.remove('hidden');
+      if (currentMode === 'VIEW') {
+        startCoords = { x: client.x - panX, y: client.y - panY };
+        mainCanvas.style.cursor = 'grabbing';
+      } else {
+        const coords = getCanvasCoordinates(client.x, client.y);
+        startCoords = coords;
+
+        selectionOverlay.style.left = `${coords.x}px`;
+        selectionOverlay.style.top = `${coords.y}px`;
+        selectionOverlay.style.width = '0px';
+        selectionOverlay.style.height = '0px';
+        selectionOverlay.classList.remove('hidden');
+      }
     }
 
     function handleMove(e) {
-      if (!isSelecting) return;
-      if (e.touches) e.preventDefault(); // Prevent page scroll during touch selection
+      if (!isInteracting) return;
+      if (e.touches) e.preventDefault();
 
-      const coords = getCanvasCoordinates(e);
-      const currentX = coords.x;
-      const currentY = coords.y;
+      const client = getPointerClientCoords(e);
 
-      const x = Math.min(startX, currentX);
-      const y = Math.min(startY, currentY);
-      const w = Math.abs(currentX - startX);
-      const h = Math.abs(currentY - startY);
+      if (currentMode === 'VIEW') {
+        panX = client.x - startCoords.x;
+        panY = client.y - startCoords.y;
+        applyTransform();
+      } else {
+        const coords = getCanvasCoordinates(client.x, client.y);
 
-      selectionOverlay.style.left = `${x}px`;
-      selectionOverlay.style.top = `${y}px`;
-      selectionOverlay.style.width = `${w}px`;
-      selectionOverlay.style.height = `${h}px`;
-    }
-
-    function handleEnd() {
-      if (!isSelecting) return;
-      isSelecting = false;
-
-      const overlayRect = {
-        x: parseFloat(selectionOverlay.style.left),
-        y: parseFloat(selectionOverlay.style.top),
-        w: parseFloat(selectionOverlay.style.width),
-        h: parseFloat(selectionOverlay.style.height)
-      };
-
-      let x = Math.floor(overlayRect.x);
-      let y = Math.floor(overlayRect.y);
-      let w = Math.floor(overlayRect.w);
-      let h = Math.floor(overlayRect.h);
-
-      // Round to 8px multiples
-      w = Math.floor(w / 8) * 8;
-      h = Math.floor(h / 8) * 8;
-
-      if (x + w > mainCanvas.width) w = Math.floor((mainCanvas.width - x) / 8) * 8;
-      if (y + h > mainCanvas.height) h = Math.floor((mainCanvas.height - y) / 8) * 8;
-
-      if (w > 0 && h > 0) {
-        selectionRect = { x, y, w, h };
-        currentSelectionCoords.textContent = `(${x}, ${y}) ${w}x${h}px`;
-        processBtn.disabled = false;
+        const x = Math.min(startCoords.x, coords.x);
+        const y = Math.min(startCoords.y, coords.y);
+        const w = Math.abs(coords.x - startCoords.x);
+        const h = Math.abs(coords.y - startCoords.y);
 
         selectionOverlay.style.left = `${x}px`;
         selectionOverlay.style.top = `${y}px`;
         selectionOverlay.style.width = `${w}px`;
         selectionOverlay.style.height = `${h}px`;
-      } else {
-        selectionOverlay.classList.add('hidden');
-        selectionRect = null;
-        currentSelectionCoords.textContent = '未選択';
-        processBtn.disabled = true;
       }
     }
 
-    // Attach Mouse Events
-    mainCanvas.addEventListener('mousedown', handleStart);
-    mainCanvas.addEventListener('mousemove', handleMove);
+    function handleEnd() {
+      if (!isInteracting) return;
+      isInteracting = false;
+
+      if (currentMode === 'VIEW') {
+        mainCanvas.style.cursor = 'grab';
+      } else {
+        const overlayRect = {
+          x: parseFloat(selectionOverlay.style.left),
+          y: parseFloat(selectionOverlay.style.top),
+          w: parseFloat(selectionOverlay.style.width),
+          h: parseFloat(selectionOverlay.style.height)
+        };
+
+        let x = Math.floor(overlayRect.x);
+        let y = Math.floor(overlayRect.y);
+        let w = Math.floor(overlayRect.w);
+        let h = Math.floor(overlayRect.h);
+
+        // Snap to 8px multiples
+        w = Math.floor(w / 8) * 8;
+        h = Math.floor(h / 8) * 8;
+
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x + w > mainCanvas.width) w = Math.floor((mainCanvas.width - x) / 8) * 8;
+        if (y + h > mainCanvas.height) h = Math.floor((mainCanvas.height - y) / 8) * 8;
+
+        if (w > 0 && h > 0) {
+          selectionRect = { x, y, w, h };
+          currentSelectionCoords.textContent = `(${x}, ${y}) ${w}x${h}px`;
+          processBtn.disabled = false;
+
+          selectionOverlay.style.left = `${x}px`;
+          selectionOverlay.style.top = `${y}px`;
+          selectionOverlay.style.width = `${w}px`;
+          selectionOverlay.style.height = `${h}px`;
+        } else {
+          selectionOverlay.classList.add('hidden');
+          selectionRect = null;
+          currentSelectionCoords.textContent = '未選択';
+          processBtn.disabled = true;
+        }
+      }
+    }
+
+    // Attach Unified Mouse and Touch Events
+    viewportContainer.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleEnd);
 
-    // Attach Touch Events (Mobile/Tablet)
-    mainCanvas.addEventListener('touchstart', handleStart, { passive: false });
-    mainCanvas.addEventListener('touchmove', handleMove, { passive: false });
+    viewportContainer.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
+
+    // Zoom Buttons
+    zoomInBtn.addEventListener('click', zoomIn);
+    zoomOutBtn.addEventListener('click', zoomOut);
+    zoomFitBtn.addEventListener('click', zoomToFit);
+    zoom100Btn.addEventListener('click', zoom100);
 
     // Process Selected Region
     processBtn.addEventListener('click', () => {
@@ -544,7 +681,7 @@
       updateUI();
     });
 
-    // Undo Last Action
+    // Undo Action
     undoBtn.addEventListener('click', () => {
       if (processedRegions.length === 0) return;
       const lastReg = processedRegions.pop();
@@ -566,7 +703,7 @@
       updateUI();
     });
 
-    // Toggle Visual Selection Frames
+    // Toggle Overlay Visibility
     toggleOverlaysBtn.addEventListener('click', () => {
       showOverlays = !showOverlays;
       regionOverlaysContainer.style.display = showOverlays ? 'block' : 'none';
@@ -574,7 +711,7 @@
       toggleOverlaysBtn.classList.toggle('text-slate-400', !showOverlays);
     });
 
-    // Save PNG with Metadata
+    // Download PNG
     downloadBtn.addEventListener('click', () => {
       mainCanvas.toBlob((blob) => {
         const reader = new FileReader();
@@ -589,13 +726,12 @@
           a.download = `scrambled_${Date.now()}.png`;
           a.click();
 
-          statusMessage.textContent = `PNG画像（埋め込み情報: ${processedRegions.length}件）を保存しました。`;
+          statusMessage.textContent = `PNG画像（メタデータ: ${processedRegions.length}件）を保存しました。`;
         };
         reader.readAsArrayBuffer(blob);
       }, 'image/png');
     });
 
-    // Synchronize UI State and Region List
     function updateUI() {
       regionCount.textContent = processedRegions.length;
       undoBtn.disabled = processedRegions.length === 0;
@@ -649,7 +785,7 @@
       });
     }
 
-    // Delete Single Processed Region
+    // Delete Individual Region
     window.removeSingleRegion = function(index) {
       if (index < 0 || index >= processedRegions.length) return;
 
@@ -671,6 +807,9 @@
       statusMessage.textContent = `領域 #${index + 1} を削除しました。`;
       updateUI();
     };
+
+    // Initial Mode
+    setMode('VIEW');
   </script>
 </body>
 </html>
