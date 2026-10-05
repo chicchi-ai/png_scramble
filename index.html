@@ -48,9 +48,9 @@
       <div>
         <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white flex items-center gap-1.5">
           PNG Scrambler
-          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">v2.1</span>
+          <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hidden sm:inline-block">v2.2</span>
         </h1>
-        <p class="text-[10px] text-slate-400 hidden sm:block">4x4 & 2x2 Pixel Swap with Interactive Pan & Zoom</p>
+        <p class="text-[10px] text-slate-400 hidden sm:block">4x4 & 2x2 Pixel Swap with Base64 Region Code Support</p>
       </div>
     </div>
 
@@ -177,19 +177,24 @@
       
       <!-- Panel Header -->
       <div class="p-2.5 sm:p-3 border-b border-slate-800 flex items-center justify-between bg-slate-800/60 shrink-0">
-        <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+        <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
           <i class="fa-solid fa-layer-group text-indigo-400"></i>
-          加工領域リスト (<span id="regionCount">0</span>)
+          加工領域 (<span id="regionCount">0</span>)
         </h2>
         
-        <div class="flex items-center space-x-1.5">
+        <div class="flex items-center space-x-1">
+          <!-- Base64 IO Button -->
+          <button id="openBase64ModalBtn" title="Base64コードを入出力" class="px-2 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 text-[11px] font-medium rounded flex items-center gap-1 active:scale-95">
+            <i class="fa-solid fa-[#]"></i>
+            <span>Base64</span>
+          </button>
+          
           <button id="undoBtn" disabled class="px-2 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 text-[11px] font-medium rounded border border-slate-700 flex items-center gap-1 active:scale-95 disabled:cursor-not-allowed">
             <i class="fa-solid fa-rotate-left"></i>
             <span>戻す</span>
           </button>
           <button id="clearAllBtn" disabled class="px-2 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-rose-400 text-[11px] font-medium rounded border border-slate-700 flex items-center gap-1 active:scale-95 disabled:cursor-not-allowed">
             <i class="fa-solid fa-trash-can"></i>
-            <span>全削除</span>
           </button>
         </div>
       </div>
@@ -210,11 +215,52 @@
         <p class="leading-relaxed text-slate-400 text-[10.5px]">
           ・<b>表示モード</b>: ドラッグで画像を移動。<br>
           ・<b>加工モード</b>: ドラッグで範囲指定（8px単位）。<br>
-          ・画像読み込み時は左上に配置されます。
+          ・<b>Base64ボタン</b>: 領域のコード出力・一括適用が可能です。
         </p>
       </div>
     </aside>
 
+  </div>
+
+  <!-- Base64 Import/Export Modal -->
+  <div id="base64Modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+      <div class="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-800/40">
+        <h3 class="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+          <i class="fa-solid fa-code text-indigo-400"></i>
+          Base64 領域データ管理
+        </h3>
+        <button id="closeBase64ModalBtn" class="text-slate-400 hover:text-white p-1 transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 text-[11px] mb-1 font-semibold">現在の領域データ (Base64符号化)</label>
+          <div class="relative">
+            <textarea id="base64OutputText" readonly rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-[11px] text-indigo-300 focus:outline-none resize-none" placeholder="領域が登録されていません"></textarea>
+            <button id="copyBase64Btn" class="absolute right-2 bottom-2.5 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] rounded shadow transition flex items-center gap-1">
+              <i class="fa-solid fa-copy"></i> コピー
+            </button>
+          </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <div>
+          <label for="base64InputText" class="block text-slate-300 text-[11px] mb-1 font-semibold">Base64コードから領域を適用</label>
+          <textarea id="base64InputText" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-[11px] text-slate-100 focus:border-indigo-500 focus:outline-none resize-none" placeholder="Base64文字列を入力... (例: MCwMCw2NCw2NA==)"></textarea>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-950 border-t border-slate-800 flex justify-end space-x-2">
+        <button id="cancelBase64ModalBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition">キャンセル</button>
+        <button id="applyBase64Btn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition shadow flex items-center gap-1">
+          <i class="fa-solid fa-play text-[10px]"></i> 適用して加工
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -254,6 +300,16 @@
 
     const regionListContainer = document.getElementById('regionListContainer');
     const regionListEmpty = document.getElementById('regionListEmpty');
+
+    // Base64 Modal Elements
+    const openBase64ModalBtn = document.getElementById('openBase64ModalBtn');
+    const closeBase64ModalBtn = document.getElementById('closeBase64ModalBtn');
+    const cancelBase64ModalBtn = document.getElementById('cancelBase64ModalBtn');
+    const base64Modal = document.getElementById('base64Modal');
+    const base64OutputText = document.getElementById('base64OutputText');
+    const base64InputText = document.getElementById('base64InputText');
+    const copyBase64Btn = document.getElementById('copyBase64Btn');
+    const applyBase64Btn = document.getElementById('applyBase64Btn');
 
     // App State
     let currentArrayBuffer = null;
@@ -506,7 +562,6 @@
       zoomScaleText.textContent = `${Math.round(scale * 100)}%`;
     }
 
-    // Align Top-Left at 100% or fit if image is smaller
     function alignTopLeft() {
       scale = 1.0;
       panX = 0;
@@ -565,7 +620,6 @@
           zoomControls.classList.remove('hidden');
           downloadBtn.disabled = false;
 
-          // Align strictly to Top-Left corner (0,0) on initial load
           alignTopLeft();
 
           if (restoredRegions.length > 0) {
@@ -691,7 +745,6 @@
         let w = Math.floor(overlayRect.w);
         let h = Math.floor(overlayRect.h);
 
-        // Snap to 8px multiples
         w = Math.floor(w / 8) * 8;
         h = Math.floor(h / 8) * 8;
 
@@ -812,6 +865,86 @@
         };
         reader.readAsArrayBuffer(blob);
       }, 'image/png');
+    });
+
+    // --- Base64 Modal & Operations ---
+
+    function getRegionsBase64() {
+      if (processedRegions.length === 0) return '';
+      const rawString = processedRegions.map(r => `${r.x},${r.y},${r.w},${r.h}`).join(';');
+      return btoa(rawString);
+    }
+
+    openBase64ModalBtn.addEventListener('click', () => {
+      base64OutputText.value = getRegionsBase64();
+      base64InputText.value = '';
+      base64Modal.classList.remove('hidden');
+    });
+
+    function closeBase64Modal() {
+      base64Modal.classList.add('hidden');
+    }
+
+    closeBase64ModalBtn.addEventListener('click', closeBase64Modal);
+    cancelBase64ModalBtn.addEventListener('click', closeBase64Modal);
+
+    copyBase64Btn.addEventListener('click', () => {
+      const val = base64OutputText.value;
+      if (!val) return;
+      navigator.clipboard.writeText(val).then(() => {
+        copyBase64Btn.innerHTML = '<i class="fa-solid fa-check"></i> 完了';
+        setTimeout(() => {
+          copyBase64Btn.innerHTML = '<i class="fa-solid fa-copy"></i> コピー';
+        }, 1500);
+      });
+    });
+
+    // Apply Base64 String to Canvas Processing
+    applyBase64Btn.addEventListener('click', () => {
+      const inputB64 = base64InputText.value.trim();
+      if (!inputB64) {
+        alert('Base64文字列を入力してください。');
+        return;
+      }
+
+      if (!currentArrayBuffer) {
+        alert('先に画像を読み込んでください。');
+        return;
+      }
+
+      try {
+        const decodedText = atob(inputB64);
+        const parts = decodedText.split(';');
+        let appliedCount = 0;
+
+        parts.forEach(part => {
+          const [x, y, w, h] = part.split(',').map(Number);
+          if (!isNaN(x) && !isNaN(y) && !isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+            // Check canvas bounds
+            if (x < mainCanvas.width && y < mainCanvas.height) {
+              const prevSnapshot = ctx.getImageData(x, y, w, h);
+              transformRegion(x, y, w, h);
+
+              processedRegions.push({
+                id: Date.now() + Math.random(),
+                x, y, w, h,
+                snapshot: prevSnapshot
+              });
+              appliedCount++;
+            }
+          }
+        });
+
+        if (appliedCount > 0) {
+          statusMessage.textContent = `Base64コードから ${appliedCount} 件の領域加工を適用しました。`;
+          updateUI();
+          closeBase64Modal();
+        } else {
+          alert('有効な領域座標データが見つかりませんでした。');
+        }
+      } catch (err) {
+        alert('Base64のデコードに失敗しました。正しいフォーマットか確認してください。');
+      }
     });
 
     function updateUI() {
